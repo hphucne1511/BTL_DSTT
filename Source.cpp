@@ -22,6 +22,12 @@ class matrix{
         vector<pair<int, int>> maximinIndex();
         vector<pair<int, int>> minimaxIndex();
         vector<double>& operator[](int);
+        friend void mult(vector<double>&, double);
+        friend void elemRowTran(vector<double>&, vector<double>, double);
+        void makePositive();
+        matrix makeSimplexMatrix();
+        void solve2x2();
+        void solvemxn();
 };
 
 
@@ -123,30 +129,106 @@ vector<pair<int, int>> matrix::minimaxIndex(){
 vector<double>& matrix::operator[](int row){
     return this->mat[row];
 }
+//Nhan vector voi mot hang so
+void mult(vector<double>& vec, double n){
+    int size = vec.size();
+    for(int i = 0;i < size;i++){
+        vec[i] *= n;
+    }
+}
+//Bien doi so cap tren hang
+void elemRowTran(vector<double>& vec1, vector<double> vec2, double n){
+    int size1 = vec1.size();
+    int size2 = vec2.size();
+    if(size1 != size2) return;
+    for(int i = 0;i < size1;i++){
+        vec1[i] = vec1[i] + n * vec2[i];
+    }
+}
+//Duong hoa moi phan tu
+void matrix::makePositive(){
+    double minMat = 10e30;
+    for(int i = 0;i < this->rows;i++){
+        for(int j = 0;j < this->cols;j++){
+            if(minMat > (*this)[i][j]) minMat = (*this)[i][j];
+        }
+    }
+    if(minMat < 0){
+        for(int i = 0;i < this->rows;i++){
+            for(int j = 0;j < this->cols;j++){
+                (*this)[i][j] += minMat;
+            }
+        }
+    }
+}
+//Chuyen thanh ma tran de dung thuat toan simplex
+matrix matrix::makeSimplexMatrix(){
+    matrix simplexMat(this->rows + 1, this->cols + this->rows + 1);
+    for(int i = 0;i < this->rows;i++){
+        for(int j = 0;j < this->cols;j++){
+            simplexMat[i][j] = (*this)[i][j];
+            simplexMat[i][this->cols + i] = 1;
+            simplexMat[i][this->cols + this->rows] = 1;
+        }
+    }
+    return simplexMat;
+}
 
 
-int main(){
-    //Giai bai toan 2x2
+//Giai 2x2
+void matrix::solve2x2(){
     double gameValue_2x2 = 0;
-    matrix beneficialMatrix_2x2(2, 2);
-    beneficialMatrix_2x2.setMatrix(); 
-    double maximin = beneficialMatrix_2x2[beneficialMatrix_2x2.maximinIndex()[0].first][beneficialMatrix_2x2.maximinIndex()[0].second];
-    double minimax = beneficialMatrix_2x2[beneficialMatrix_2x2.minimaxIndex()[0].first][beneficialMatrix_2x2.minimaxIndex()[0].second];
+    double maximin = (*this)[this->maximinIndex()[0].first][this->maximinIndex()[0].second];
+    double minimax = (*this)[this->minimaxIndex()[0].first][this->minimaxIndex()[0].second];
     if(abs(maximin - minimax) < 1e-9){
         gameValue_2x2 = maximin;    
-        vector<pair<int, int>> pureStrategy_2x2;
-        pureStrategy_2x2 = beneficialMatrix_2x2.maximinIndex();
+        vector<pair<int, int>> pureStrategy_2x2 = this->maximinIndex();
         int size = pureStrategy_2x2.size();
-        for(int i = 0;i < size;i++){
+        for(int i = 0; i < size; i++){
             cout << "Pure strategy #" << i + 1 << ": " << pureStrategy_2x2[i].first << " " << pureStrategy_2x2[i].second << '\n';
         }
-    }else{
-        double delta = beneficialMatrix_2x2[0][0] - beneficialMatrix_2x2[0][1] - beneficialMatrix_2x2[1][0] + beneficialMatrix_2x2[1][1];
-        gameValue_2x2 = beneficialMatrix_2x2.det() / delta;
-        double p = (beneficialMatrix_2x2[1][1] - beneficialMatrix_2x2[1][0]) / delta;
-        double q = (beneficialMatrix_2x2[1][1] - beneficialMatrix_2x2[0][1]) / delta;
+    } else {
+        double delta = (*this)[0][0] - (*this)[0][1] - (*this)[1][0] + (*this)[1][1];
+        gameValue_2x2 = this->det() / delta;
+        double p = ((*this)[1][1] - (*this)[1][0]) / delta;
+        double q = ((*this)[1][1] - (*this)[0][1]) / delta;
         cout << "First player strategy: " << p << " " << 1 - p << '\n';
         cout << "Second player strategy: " << q << " " << 1 - q << '\n';
     }
     cout << "Game Value: " << gameValue_2x2 << '\n';
+}
+
+
+//Giai mxn
+void matrix::solvemxn(){
+    double gameValue_mxn = 0;
+    double maximin = (*this)[this->maximinIndex()[0].first][this->maximinIndex()[0].second];
+    double minimax = (*this)[this->minimaxIndex()[0].first][this->minimaxIndex()[0].second];
+    if(abs(maximin - minimax) < 1e-9){
+        gameValue_mxn = maximin; 
+        vector<pair<int, int>> pureStrategy_mxn = this->maximinIndex();
+        int size = pureStrategy_mxn.size();
+        for(int i = 0; i < size; i++){
+            cout << "Pure strategy #" << i + 1 << ": " << pureStrategy_mxn[i].first << " " << pureStrategy_mxn[i].second << '\n';
+        }
+    }else{
+        this->makePositive();
+        matrix simplexMat = this->makeSimplexMatrix();
+        int newMaxRow = this->rows + 1;
+        int newMaxCol = this->rows + this->cols + 1;
+    }
+}
+
+
+int main(){
+    //Giai bai toan 2x2
+    matrix beneficialMatrix_2x2(2, 2);
+    beneficialMatrix_2x2.setMatrix(); 
+    beneficialMatrix_2x2.solve2x2();
+    //Giai bai toan tong quat mxn
+    int m,n;
+    cin >> m >> n;
+    matrix beneficialMatrix_mxn(m, n);
+    beneficialMatrix_mxn.setMatrix();
+
 }
