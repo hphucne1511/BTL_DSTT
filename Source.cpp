@@ -24,12 +24,11 @@ class matrix{
         vector<double>& operator[](int);
         friend void mult(vector<double>&, double);
         friend void elemRowTran(vector<double>&, vector<double>, double);
-        void makePositive();
+        double makePositive();
         matrix makeSimplexMatrix();
         void solve2x2();
         void solvemxn();
 };
-
 
 
 
@@ -146,20 +145,23 @@ void elemRowTran(vector<double>& vec1, vector<double> vec2, double n){
     }
 }
 //Duong hoa moi phan tu
-void matrix::makePositive(){
+double matrix::makePositive(){
     double minMat = 10e30;
     for(int i = 0;i < this->rows;i++){
         for(int j = 0;j < this->cols;j++){
             if(minMat > (*this)[i][j]) minMat = (*this)[i][j];
         }
     }
-    if(minMat < 0){
+    double addedConst = 0;
+    if(minMat <= 0){
+        addedConst = abs(minMat) + 1.0;
         for(int i = 0;i < this->rows;i++){
             for(int j = 0;j < this->cols;j++){
-                (*this)[i][j] += minMat;
+                (*this)[i][j] += addedConst;
             }
         }
     }
+    return addedConst;
 }
 //Chuyen thanh ma tran de dung thuat toan simplex
 matrix matrix::makeSimplexMatrix(){
@@ -167,9 +169,12 @@ matrix matrix::makeSimplexMatrix(){
     for(int i = 0;i < this->rows;i++){
         for(int j = 0;j < this->cols;j++){
             simplexMat[i][j] = (*this)[i][j];
-            simplexMat[i][this->cols + i] = 1;
-            simplexMat[i][this->cols + this->rows] = 1;
         }
+        simplexMat[i][this->cols + i] = 1;
+        simplexMat[i][this->cols + this->rows] = 1;
+    }
+    for (int j = 0; j < this->cols; j++) {
+        simplexMat[this->rows][j] = -1.0;
     }
     return simplexMat;
 }
@@ -212,11 +217,71 @@ void matrix::solvemxn(){
             cout << "Pure strategy #" << i + 1 << ": " << pureStrategy_mxn[i].first << " " << pureStrategy_mxn[i].second << '\n';
         }
     }else{
-        this->makePositive();
+        double addedConst = this->makePositive();
         matrix simplexMat = this->makeSimplexMatrix();
         int newMaxRow = this->rows + 1;
         int newMaxCol = this->rows + this->cols + 1;
+        vector<double> strategy1_mxn(this->rows, 0);
+        vector<double> strategy2_mxn(this->cols, 0);
+        bool done = false;
+        vector<int> bT(this->rows, -1);
+        while(!done){
+            double minCol = -1e-9;
+            double minRatio = 1e30;
+            int curCol = -1;
+            int curRow = -1;
+            for(int j = 0;j < newMaxCol - 1;j++){
+                if(simplexMat[newMaxRow - 1][j] < minCol){
+                    minCol = simplexMat[newMaxRow - 1][j];
+                    curCol = j;
+                }
+            }
+            if(curCol == -1) {
+                break;
+            }
+            for(int i = 0; i < this->rows; i++){
+                if(simplexMat[i][curCol] > 1e-9){
+                    double ratio = simplexMat[i][newMaxCol - 1] / simplexMat[i][curCol];
+                    if(ratio < minRatio){ 
+                        minRatio = ratio;
+                        curRow = i; 
+                    }
+                }
+            }
+            if(curRow == -1) {
+                break;
+            }
+            bT[curRow] = curCol;
+            mult(simplexMat[curRow], 1.0 / simplexMat[curRow][curCol]);
+            for(int i = 0;i < newMaxRow;i++){
+                if(i == curRow) continue;
+                double factor = simplexMat[i][curCol];
+                elemRowTran(simplexMat[i], simplexMat[curRow], -factor);
+            }
+            done = true;
+            for(int j = 0;j < newMaxCol - 1;j++){
+                if(simplexMat[newMaxRow - 1][j] < -1e-9) done = false;
+            }
+        }
+        gameValue_mxn = 1 / simplexMat[newMaxRow - 1][newMaxCol - 1];
+        cout << "First player strategy: ";
+        for(int j = 0;j < this->rows;j++){
+            strategy1_mxn[j] = simplexMat[newMaxRow - 1][this->cols + j] * gameValue_mxn;
+            cout << strategy1_mxn[j] << " ";
+        }
+        cout << '\n' << "Second player strategy: ";
+        for(int i = 0;i < this->rows;i++){
+            if(bT[i] >= 0 && bT[i] < this->cols) {
+                strategy2_mxn[bT[i]] = simplexMat[i][newMaxCol - 1] * gameValue_mxn;
+            }
+        }
+        for(int j = 0; j < this->cols; j++){
+            cout << strategy2_mxn[j] << " ";
+        }
+        cout << '\n';
+        gameValue_mxn -= addedConst;
     }
+    cout << "Game Value: " << gameValue_mxn << '\n';
 }
 
 
@@ -230,5 +295,6 @@ int main(){
     cin >> m >> n;
     matrix beneficialMatrix_mxn(m, n);
     beneficialMatrix_mxn.setMatrix();
-
+    beneficialMatrix_mxn.solvemxn();
+    return 0;
 }
